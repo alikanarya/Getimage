@@ -15,7 +15,9 @@
 #include <QImage>
 //#include <QNetworkConfiguration>
 //#include <QTcpSocket>
-#include "../_Modules/Getsystemtime/getsystemtime.h"
+
+#include "../_Modules/Getsystemtime/getsystemtime.h"    // module global for applications
+//#include "../../Getsystemtime/getsystemtime.h"          // module local for test build
 
 // this class holds network data
 class networkData {
