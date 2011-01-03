@@ -72,14 +72,19 @@ void getImage::downloadFinished(QNetworkReply *reply){
             _data->requestSecond = reply->request().rawHeader( RequestSecond );
             _data->requestMSecond = reply->request().rawHeader( RequestMSecond );
             _data->shown = false;
-            imageList.append(_data);
 
-            replyId++;
-            if (replyId == fpsTarget) replyId = 0;
-            if (imageList.size() == fpsTarget){
-                delete imageList[0];
-                imageList.removeFirst();
-            }
+            if (_data->image->format() != QImage::Format_Invalid) {
+                imageList.append(_data);
+
+                replyId++;
+                if (replyId == fpsTarget) replyId = 0;
+
+                if (imageList.size() == fpsTarget){
+                    delete imageList[0];
+                    imageList.removeFirst();
+                }
+            } else
+                delete _data;
         }
 
     } else {
