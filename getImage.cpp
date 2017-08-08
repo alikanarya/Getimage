@@ -40,6 +40,7 @@ void getImage::run(){
     time.getSystemTimeMsec();
 
     QNetworkRequest request(url);
+    //request.setRawHeader("Authorization","Basic " +   QByteArray(QString("%1:%2").arg("admin").arg("admin").toAscii()).toBase64());
     request.setRawHeader(RequestID, QString::number(requestId).toUtf8());
     request.setRawHeader(RequestHour, QString::number(time.hour).toUtf8());
     request.setRawHeader(RequestMinute, QString::number(time.minute).toUtf8());
@@ -63,6 +64,7 @@ void getImage::downloadFinished(QNetworkReply *reply){
 
         if (reply->error()) {
             errorCount++;
+/**/qDebug() << errorCount << reply->errorString();
         } else {
             networkData *_data = new networkData();
             _data->image->loadFromData(reply->readAll());
@@ -77,7 +79,7 @@ void getImage::downloadFinished(QNetworkReply *reply){
                 imageList.append(_data);
 
                 replyId++;
-                if (replyId == fpsTarget) replyId = 0;
+                if (replyId >= fpsTarget) replyId = 0;
 
                 if (imageList.size() == fpsTarget){
                     delete imageList[0];
