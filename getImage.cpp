@@ -1,7 +1,7 @@
 #include "getimage.h"
 
-static const char *user = "admin";
-static const char *password = "admin";
+static const char *user = "user";//anonymity";
+static const char *password = "user";
 
 networkData::networkData(){
     image = new QImage;
@@ -36,9 +36,10 @@ getImage::getImage(QString _url,int _fpsTarget){
 }
 
 void getImage::onAuthenticationRequestSlot(QNetworkReply *aReply, QAuthenticator *aAuthenticator){
-    qDebug() << Q_FUNC_INFO << aAuthenticator->realm();;
+    //qDebug() << Q_FUNC_INFO << aAuthenticator->realm();;
     aAuthenticator->setUser(user);
     aAuthenticator->setPassword(password);
+    aAuthenticator->setOption("realm", "Digest-MD5");
 }
 
 QImage* getImage::toImage(QIODevice *data){
@@ -51,7 +52,7 @@ void getImage::run(){
     time.getSystemTimeMsec();
 
     QNetworkRequest request(url);
-    //request.setRawHeader("Authorization","Basic " + QByteArray(QString("%1:%2").arg("admin").arg("admin").toLocal8Bit()).toBase64());
+    request.setRawHeader("Authorization","Basic " + QByteArray(QString("%1:%2").arg("user").arg("user").toAscii()).toBase64());
     request.setRawHeader(RequestID, QString::number(requestId).toUtf8());
     request.setRawHeader(RequestHour, QString::number(time.hour).toUtf8());
     request.setRawHeader(RequestMinute, QString::number(time.minute).toUtf8());
