@@ -11,6 +11,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
 #include <QNetworkReply>
+#include <QAuthenticator>
 #include <QUrl>
 #include <QImage>
 //#include <QNetworkConfiguration>
@@ -66,6 +67,7 @@ class getImage: public QObject {
     public slots:
         void downloadFinished(QNetworkReply *reply);    // receives data
         void checkReplyFinished(QNetworkReply *reply);
+        void onAuthenticationRequestSlot(QNetworkReply *aReply, QAuthenticator *aAuthenticator);
 };
 
 #endif // GETIMAGE_H

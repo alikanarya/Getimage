@@ -1,5 +1,8 @@
 #include "getimage.h"
 
+static const char *user = "admin";
+static const char *password = "admin";
+
 networkData::networkData(){
     image = new QImage;
     requestId = "0";
@@ -15,7 +18,6 @@ getImage::getImage(QString _url){
     cameraDown = true;
     requestTime = 0;
     replyTime = 0;
-
     connect(&manager, SIGNAL(finished(QNetworkReply*)),SLOT(checkReplyFinished(QNetworkReply*)));
 }
 
@@ -27,7 +29,16 @@ getImage::getImage(QString _url,int _fpsTarget){
     fpsTarget = _fpsTarget;
     repliesAborted = false;
 
+    Q_ASSERT(&manager);
+    connect(&manager, SIGNAL(authenticationRequired(QNetworkReply*,QAuthenticator*)),
+            SLOT(onAuthenticationRequestSlot(QNetworkReply*,QAuthenticator*)));
     connect(&manager, SIGNAL(finished(QNetworkReply*)),SLOT(downloadFinished(QNetworkReply*)));
+}
+
+void getImage::onAuthenticationRequestSlot(QNetworkReply *aReply, QAuthenticator *aAuthenticator){
+    qDebug() << Q_FUNC_INFO << aAuthenticator->realm();;
+    aAuthenticator->setUser(user);
+    aAuthenticator->setPassword(password);
 }
 
 QImage* getImage::toImage(QIODevice *data){
@@ -40,7 +51,7 @@ void getImage::run(){
     time.getSystemTimeMsec();
 
     QNetworkRequest request(url);
-    //request.setRawHeader("Authorization","Basic " +   QByteArray(QString("%1:%2").arg("admin").arg("admin").toAscii()).toBase64());
+    //request.setRawHeader("Authorization","Basic " + QByteArray(QString("%1:%2").arg("admin").arg("admin").toLocal8Bit()).toBase64());
     request.setRawHeader(RequestID, QString::number(requestId).toUtf8());
     request.setRawHeader(RequestHour, QString::number(time.hour).toUtf8());
     request.setRawHeader(RequestMinute, QString::number(time.minute).toUtf8());
@@ -64,7 +75,7 @@ void getImage::downloadFinished(QNetworkReply *reply){
 
         if (reply->error()) {
             errorCount++;
-/**/qDebug() << errorCount << reply->errorString();
+/**/qDebug() << errorCount << "df" << reply->errorString();
         } else {
             networkData *_data = new networkData();
             _data->image->loadFromData(reply->readAll());
@@ -116,6 +127,7 @@ void getImage::checkHost(){
 void getImage::checkReplyFinished(QNetworkReply *reply){
     if (reply->error()) {
         //errorCount++;
+/**/qDebug() << "rf" << reply->errorString();
     } else {
         replyTime = time.getSystemTimeMsec();
     }
