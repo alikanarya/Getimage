@@ -1,7 +1,7 @@
 #include "getimage.h"
 
-static const char *user = "user";//anonymity";
-static const char *password = "HczGrZ3ZmJKX9Tbq+mk4FxJ4gn8=";
+static const char *user = "admin";//anonymity";
+static const char *password = "admin";
 
 networkData::networkData(){
     image = new QImage;
@@ -55,11 +55,13 @@ void getImage::run(){
 
     QNetworkRequest request(url);
     //request.setRawHeader("Authorization","Basic " + QByteArray(QString("%1:%2").arg("admin").arg("admin").toAscii()).toBase64());
-    request.setRawHeader("Authorization"," Digest " +  QByteArray(QString("username=\"%1\", nonce=\"%2\", created=\"%3\"").
-                                                                 arg("user").
-                                                                 arg("HmNZUItRA41qyfdARKPCYcjQ4JE=").
-                                                                 arg("2017-08-10T19:17:22.000Z").toAscii()));
+    /*
+    request.setRawHeader("Authorization","Digest " +  QByteArray(QString("username=\"%1\", nonce=\"%2\", created=\"%3\"").
+                                                                 arg("admin").
+                                                                 arg("boAIt2qKEgFyncxdP6R8MdbkV2c=").
+                                                                 arg("2017-08-10T22:02:33.000Z").toAscii()));
     //arg("2017-08-10T19:17:22.000Z").toAscii()).toBase64());
+    */
     request.setRawHeader(RequestID, QString::number(requestId).toUtf8());
     request.setRawHeader(RequestHour, QString::number(time.hour).toUtf8());
     request.setRawHeader(RequestMinute, QString::number(time.minute).toUtf8());
