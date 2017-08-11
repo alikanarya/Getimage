@@ -1,6 +1,8 @@
 #include "getimage.h"
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
+#include <QRegularExpressionMatchIterator>
+#include <QCryptographicHash>
 
 static const char *user = "admin";//anonymity";
 static const char *password = "admin";
@@ -84,71 +86,104 @@ void getImage::downloadFinished(QNetworkReply *reply){
     int replyDelay = time.getSystemTimeMsec() - calcTotalMsec(hour, minute, second, msec);
 
     if (reply->error() == QNetworkReply::AuthenticationRequiredError) {
-        //qDebug() << reply->error();
-        qDebug() << reply->rawHeader("WWW-Authenticate");
+
         QByteArray httpHeaders = reply->rawHeader("WWW-Authenticate");
-        QMap<QByteArray, QByteArray> headers;
-
-        // Discard the first line
-        //httpHeaders = httpHeaders.mid(httpHeaders.indexOf('\n') + 1).trimmed();
-
         httpHeaders.replace(QByteArray("\""),QByteArray(""));
+        httpHeaders += ",";
         qDebug() << httpHeaders;
-        QRegularExpression regex("=(.*),");
-        QRegularExpressionMatch match = regex.match(httpHeaders);
-        QString textYouWant = match.captured(0);
-        qDebug() << textYouWant;
-        /*
-        foreach(QByteArray line, httpHeaders.split('\\')) {
-            int colon = line.indexOf(':');
-            QByteArray headerName = line.left(colon).trimmed();
-            QByteArray headerValue = line.mid(colon + 1).trimmed();
-
-            qDebug() << headerName << "-" << headerValue;
-            headers.insertMulti(headerName, headerValue);
+        QRegularExpression regex("=(.*?),");
+        QRegularExpressionMatchIterator i = regex.globalMatch(httpHeaders);
+        QList<QString> authResponse;
+        while (i.hasNext()) {
+            QRegularExpressionMatch match = i.next();
+            if (match.hasMatch()) { // realm, qop, nonce, opaque
+                authResponse.append(match.captured(1));
+            }
         }
-        */
 
-    }
-    if (replyDelay <= 1000){
-        repliesAborted = false;
+        //for (int j=0; j<authResponse.size(); j++) qDebug() << authResponse.at(j);
+        qDebug() << "realm=" << authResponse.at(0) << " qop=" << authResponse.at(1) << " nonce=" << authResponse.at(2) << " opaque=" << authResponse.at(3);
 
-        if (reply->error()) {
-            errorCount++;
-//qDebug() << errorCount << "df" << reply->errorString();
-        } else {
-            networkData *_data = new networkData();
-            _data->image->loadFromData(reply->readAll());
-            _data->requestId = reply->request().rawHeader( RequestID );
-            _data->requestHour = reply->request().rawHeader( RequestHour );
-            _data->requestMinute = reply->request().rawHeader( RequestMinute );
-            _data->requestSecond = reply->request().rawHeader( RequestSecond );
-            _data->requestMSecond = reply->request().rawHeader( RequestMSecond );
-            _data->shown = false;
+        QByteArray dlm = QString(":").toLocal8Bit();
+        QByteArray HA1inp = QString("admin").toLocal8Bit() + dlm + authResponse.at(0).toLocal8Bit() + dlm + QString("admin").toLocal8Bit();
+        QByteArray HA1byte = QCryptographicHash::hash((HA1inp),QCryptographicHash::Md5).toHex();
+        //QByteArray HA1byte = QCryptographicHash::hash(("admin:Login to 2C003E7PAW00006:admin"),QCryptographicHash::Md5).toHex();
+        QString HA1 =  QString(HA1byte);
 
-//qDebug() << "df request ID: " << _data->requestId;
+        QByteArray HA2inp = QString("GET").toLocal8Bit() + dlm + QString("/cgi-bin/snapshot.cgi").toLocal8Bit();
+        QByteArray HA2byte = QCryptographicHash::hash((HA2inp),QCryptographicHash::Md5).toHex();
+        //QByteArray HA2byte = QCryptographicHash::hash(("GET:/cgi-bin/mjpg/video.cgi?channel=1&subtype=1"),QCryptographicHash::Md5).toHex();
+        QString HA2 =  QString(HA2byte);
 
-            if (_data->image->format() != QImage::Format_Invalid) {
-                imageList.append(_data);
+        QByteArray inp = HA1byte + dlm +
+                authResponse.at(2).toLocal8Bit() + dlm +
+                QString("00000001").toLocal8Bit() + dlm +
+                QString("d655ee94b416337a").toLocal8Bit() + dlm +
+                authResponse.at(1).toLocal8Bit() + dlm + HA2byte;
 
-                replyId++;
-//qDebug() << "df reply ID: " << replyId;
+        //QString(":425529402:00000001:d655ee94b416337a:auth:").toLocal8Bit() + HA2byte;
+        //QByteArray inp = HA1byte + QString(":425529402:00000001:d655ee94b416337a:auth:").toLocal8Bit() + HA2byte;
+        QString Resp =  QString(QCryptographicHash::hash((inp),QCryptographicHash::Md5).toHex());
+        qDebug() << "HA1=" << HA1 << " HA2=" << HA2 << " Resp=" << Resp;
 
-                if (replyId >= fpsTarget) replyId = 0;
-
-                if (imageList.size() == fpsTarget){
-                    delete imageList[0];
-                    imageList.removeFirst();
-                }
-            } else
-                delete _data;
-        }
+        QNetworkRequest request(url);
+        request.setRawHeader("Authorization", "Digest " +
+                             QByteArray(QString("username=\"%1\", realm=\"%2\", "
+                                                "nonce=\"%3\", uri=\"%4\", "
+                                                "response=\"%5\", opaque=\"%6\", "
+                                                "qop=\"%7\", nc=\"%8\", cnonce=\"%9\"").
+                                                arg("admin").arg(authResponse.at(0)).
+                                                arg(authResponse.at(2)).arg("/cgi-bin/snapshot.cgi").
+                                                arg(Resp).arg(authResponse.at(3)).
+                                                arg(authResponse.at(1)).arg("00000001").arg("d655ee94b416337a").
+                                                toAscii()));
+        manager.get(request);
 
     } else {
-        repliesAborted = true;
 
-        reply->abort();
+        if (replyDelay <= 1000){
+            repliesAborted = false;
+
+            if (reply->error()) {
+                errorCount++;
+    //qDebug() << errorCount << "df" << reply->errorString();
+            } else {
+                networkData *_data = new networkData();
+                _data->image->loadFromData(reply->readAll());
+                _data->requestId = reply->request().rawHeader( RequestID );
+                _data->requestHour = reply->request().rawHeader( RequestHour );
+                _data->requestMinute = reply->request().rawHeader( RequestMinute );
+                _data->requestSecond = reply->request().rawHeader( RequestSecond );
+                _data->requestMSecond = reply->request().rawHeader( RequestMSecond );
+                _data->shown = false;
+
+    //qDebug() << "df request ID: " << _data->requestId;
+
+                if (_data->image->format() != QImage::Format_Invalid) {
+                    imageList.append(_data);
+
+                    replyId++;
+    //qDebug() << "df reply ID: " << replyId;
+
+                    if (replyId >= fpsTarget) replyId = 0;
+
+                    if (imageList.size() == fpsTarget){
+                        delete imageList[0];
+                        imageList.removeFirst();
+                    }
+                } else
+                    delete _data;
+            }
+
+        } else {
+            repliesAborted = true;
+
+            reply->abort();
+        }
+
     }
+
+
 
     reply->deleteLater();
 }
