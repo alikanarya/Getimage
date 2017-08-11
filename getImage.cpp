@@ -1,4 +1,6 @@
 #include "getimage.h"
+#include <QRegularExpression>
+#include <QRegularExpressionMatch>
 
 static const char *user = "admin";//anonymity";
 static const char *password = "admin";
@@ -35,13 +37,11 @@ getImage::getImage(QString _url,int _fpsTarget){
 }
 
 void getImage::onAuthenticationRequestSlot(QNetworkReply *aReply, QAuthenticator *aAuthenticator){
-    qDebug() << " realm: " << aAuthenticator->options().values().at(0).toString();
-             //<< " reply: " << aReply->rawHeaderList().at(0).toBase64();
+    qDebug() << " realm: " << aAuthenticator->options().values().at(0).toString()
+             << " reply: " << aReply->rawHeaderList();
     //<< Q_FUNC_INFO << aAuthenticator->realm()
     aAuthenticator->setUser(user);
     aAuthenticator->setPassword(password);
-    aAuthenticator->setOption("nonce", "zMXtmg0jPB9+47uBIB1LcEx34w0=");
-    aAuthenticator->setOption("Created", "2017-08-10T16:51:37.000Z");
 }
 
 QImage* getImage::toImage(QIODevice *data){
@@ -78,14 +78,44 @@ void getImage::downloadFinished(QNetworkReply *reply){
     int second = reply->request().rawHeader( RequestSecond ).toInt();
     int msec = reply->request().rawHeader( RequestMSecond ).toInt();
 
+
+//qDebug()<<Q_FUNC_INFO << reply->rawHeader("CONNECTION") << ":" << reply->rawHeader("CONTENT-LENGTH");
+
     int replyDelay = time.getSystemTimeMsec() - calcTotalMsec(hour, minute, second, msec);
 
+    if (reply->error() == QNetworkReply::AuthenticationRequiredError) {
+        //qDebug() << reply->error();
+        qDebug() << reply->rawHeader("WWW-Authenticate");
+        QByteArray httpHeaders = reply->rawHeader("WWW-Authenticate");
+        QMap<QByteArray, QByteArray> headers;
+
+        // Discard the first line
+        //httpHeaders = httpHeaders.mid(httpHeaders.indexOf('\n') + 1).trimmed();
+
+        httpHeaders.replace(QByteArray("\""),QByteArray(""));
+        qDebug() << httpHeaders;
+        QRegularExpression regex("=(.*),");
+        QRegularExpressionMatch match = regex.match(httpHeaders);
+        QString textYouWant = match.captured(0);
+        qDebug() << textYouWant;
+        /*
+        foreach(QByteArray line, httpHeaders.split('\\')) {
+            int colon = line.indexOf(':');
+            QByteArray headerName = line.left(colon).trimmed();
+            QByteArray headerValue = line.mid(colon + 1).trimmed();
+
+            qDebug() << headerName << "-" << headerValue;
+            headers.insertMulti(headerName, headerValue);
+        }
+        */
+
+    }
     if (replyDelay <= 1000){
         repliesAborted = false;
 
         if (reply->error()) {
             errorCount++;
-/**/qDebug() << errorCount << "df" << reply->errorString();
+//qDebug() << errorCount << "df" << reply->errorString();
         } else {
             networkData *_data = new networkData();
             _data->image->loadFromData(reply->readAll());
@@ -96,10 +126,14 @@ void getImage::downloadFinished(QNetworkReply *reply){
             _data->requestMSecond = reply->request().rawHeader( RequestMSecond );
             _data->shown = false;
 
+//qDebug() << "df request ID: " << _data->requestId;
+
             if (_data->image->format() != QImage::Format_Invalid) {
                 imageList.append(_data);
 
                 replyId++;
+//qDebug() << "df reply ID: " << replyId;
+
                 if (replyId >= fpsTarget) replyId = 0;
 
                 if (imageList.size() == fpsTarget){
