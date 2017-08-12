@@ -92,7 +92,6 @@ void getImage::downloadFinished(QNetworkReply *reply){
         QByteArray httpHeaders = reply->rawHeader("WWW-Authenticate");
         httpHeaders.replace(QByteArray("\""),QByteArray(""));
         httpHeaders += ",";
-        //qDebug() << httpHeaders;
         QRegularExpression regex("=(.*?),");
         QRegularExpressionMatchIterator i = regex.globalMatch(httpHeaders);
         QList<QString> authResponse;
@@ -106,16 +105,11 @@ void getImage::downloadFinished(QNetworkReply *reply){
         //for (int j=0; j<authResponse.size(); j++) qDebug() << authResponse.at(j);
         //qDebug() << "realm=" << authResponse.at(0) << " qop=" << authResponse.at(1) << " nonce=" << authResponse.at(2) << " opaque=" << authResponse.at(3);
 
-        QByteArray dlm = QString(":").toLocal8Bit();
         QByteArray HA1inp = QString("admin").toLocal8Bit() + dlm + authResponse.at(0).toLocal8Bit() + dlm + QString("admin").toLocal8Bit();
         QByteArray HA1byte = QCryptographicHash::hash((HA1inp),QCryptographicHash::Md5).toHex();
-        //QByteArray HA1byte = QCryptographicHash::hash(("admin:Login to 2C003E7PAW00006:admin"),QCryptographicHash::Md5).toHex();
-        QString HA1 =  QString(HA1byte);
 
         QByteArray HA2inp = QString("GET").toLocal8Bit() + dlm + QString("/cgi-bin/snapshot.cgi").toLocal8Bit();
         QByteArray HA2byte = QCryptographicHash::hash((HA2inp),QCryptographicHash::Md5).toHex();
-        //QByteArray HA2byte = QCryptographicHash::hash(("GET:/cgi-bin/mjpg/video.cgi?channel=1&subtype=1"),QCryptographicHash::Md5).toHex();
-        QString HA2 =  QString(HA2byte);
 
         QByteArray inp = HA1byte + dlm +
                 authResponse.at(2).toLocal8Bit() + dlm +
@@ -123,10 +117,7 @@ void getImage::downloadFinished(QNetworkReply *reply){
                 QString("d655ee94b416337a").toLocal8Bit() + dlm +
                 authResponse.at(1).toLocal8Bit() + dlm + HA2byte;
 
-        //QString(":425529402:00000001:d655ee94b416337a:auth:").toLocal8Bit() + HA2byte;
-        //QByteArray inp = HA1byte + QString(":425529402:00000001:d655ee94b416337a:auth:").toLocal8Bit() + HA2byte;
         QString Resp =  QString(QCryptographicHash::hash((inp),QCryptographicHash::Md5).toHex());
-        //qDebug() << "HA1=" << HA1 << " HA2=" << HA2 << " Resp=" << Resp;
 
 
         authorHeader = QByteArray(QString("username=\"%1\", realm=\"%2\", "
@@ -137,65 +128,55 @@ void getImage::downloadFinished(QNetworkReply *reply){
                            arg(authResponse.at(2)).arg("/cgi-bin/snapshot.cgi").
                            arg(Resp).arg(authResponse.at(3)).
                            arg(authResponse.at(1)).arg("00000001").arg("d655ee94b416337a").toAscii());
-        /*
-        QNetworkRequest request(url);
-        request.setRawHeader("Authorization", "Digest " +
-                             QByteArray(QString("username=\"%1\", realm=\"%2\", "
-                                                "nonce=\"%3\", uri=\"%4\", "
-                                                "response=\"%5\", opaque=\"%6\", "
-                                                "qop=%7, nc=%8, cnonce=\"%9\"").
-                                                arg("admin").arg(authResponse.at(0)).
-                                                arg(authResponse.at(2)).arg("/cgi-bin/snapshot.cgi").
-                                                arg(Resp).arg(authResponse.at(3)).
-                                                arg(authResponse.at(1)).arg("00000001").arg("d655ee94b416337a").
-                                                toAscii()));
-        manager.get(request);
-        */
+
+        //qDebug() << httpHeaders;
+        qDebug() << "downloadFinished() request ID: " << reply->request().rawHeader(RequestID) << " " << httpHeaders;
+        //qDebug() << "HA1=" << QString(HA1byte) << " HA2=" << QString(HA2byte) << " Resp=" << Resp;
         //qDebug() << QString(authorHeader);
+
+    } else if (reply->error()){
+
+        errorCount++;
+        qDebug() << errorCount << " downloadFinished() " << reply->errorString();
 
     } else {
 
         authenticated = true;
 
-        if (replyDelay <= 1000){
+        //if (replyDelay <= 1000){
             repliesAborted = false;
 
-            if (reply->error()) {
-                errorCount++;
-    //qDebug() << errorCount << "df" << reply->errorString();
-            } else {
-                networkData *_data = new networkData();
-                _data->image->loadFromData(reply->readAll());
-                _data->requestId = reply->request().rawHeader( RequestID );
-                _data->requestHour = reply->request().rawHeader( RequestHour );
-                _data->requestMinute = reply->request().rawHeader( RequestMinute );
-                _data->requestSecond = reply->request().rawHeader( RequestSecond );
-                _data->requestMSecond = reply->request().rawHeader( RequestMSecond );
-                _data->shown = false;
+            networkData *_data = new networkData();
+            _data->image->loadFromData(reply->readAll());
+            _data->requestId = reply->request().rawHeader( RequestID );
+            _data->requestHour = reply->request().rawHeader( RequestHour );
+            _data->requestMinute = reply->request().rawHeader( RequestMinute );
+            _data->requestSecond = reply->request().rawHeader( RequestSecond );
+            _data->requestMSecond = reply->request().rawHeader( RequestMSecond );
+            _data->shown = false;
 
-    //qDebug() << "df request ID: " << _data->requestId;
+            qDebug() << "downloadFinished() request ID: " << _data->requestId;
 
-                if (_data->image->format() != QImage::Format_Invalid) {
-                    imageList.append(_data);
+            if (_data->image->format() != QImage::Format_Invalid) {
+                imageList.append(_data);
 
-                    replyId++;
-    //qDebug() << "df reply ID: " << replyId;
+                replyId++;
+                //qDebug() << "downloadFinished() reply ID: " << replyId;
 
-                    if (replyId >= fpsTarget) replyId = 0;
+                if (replyId >= fpsTarget) replyId = 0;
 
-                    if (imageList.size() == fpsTarget){
-                        delete imageList[0];
-                        imageList.removeFirst();
-                    }
-                } else
-                    delete _data;
-            }
+                if (imageList.size() == fpsTarget){
+                    delete imageList[0];
+                    imageList.removeFirst();
+                }
+            } else
+                delete _data;
 
-        } else {
+        /*} else {
+
             repliesAborted = true;
-
             reply->abort();
-        }
+        }*/
 
     }
 

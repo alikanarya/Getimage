@@ -55,6 +55,7 @@ class getImage: public QObject {
         bool cameraDown;
         bool authenticated = false;
         QByteArray authorHeader = "";
+        QByteArray dlm = QString(":").toLocal8Bit();
 
         getImage(QString _url);                 // constructor
         getImage(QString _url,int _fpsTarget);  // constructor
