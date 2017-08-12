@@ -64,6 +64,7 @@ void getImage::run(){
                                                                  arg("2017-08-10T22:02:33.000Z").toAscii()));
     //arg("2017-08-10T19:17:22.000Z").toAscii()).toBase64());
     */
+    request.setRawHeader("Authorization","Digest " + authorHeader);
     request.setRawHeader(RequestID, QString::number(requestId).toUtf8());
     request.setRawHeader(RequestHour, QString::number(time.hour).toUtf8());
     request.setRawHeader(RequestMinute, QString::number(time.minute).toUtf8());
@@ -87,10 +88,11 @@ void getImage::downloadFinished(QNetworkReply *reply){
 
     if (reply->error() == QNetworkReply::AuthenticationRequiredError) {
 
+        authenticated = false;
         QByteArray httpHeaders = reply->rawHeader("WWW-Authenticate");
         httpHeaders.replace(QByteArray("\""),QByteArray(""));
         httpHeaders += ",";
-        qDebug() << httpHeaders;
+        //qDebug() << httpHeaders;
         QRegularExpression regex("=(.*?),");
         QRegularExpressionMatchIterator i = regex.globalMatch(httpHeaders);
         QList<QString> authResponse;
@@ -102,7 +104,7 @@ void getImage::downloadFinished(QNetworkReply *reply){
         }
 
         //for (int j=0; j<authResponse.size(); j++) qDebug() << authResponse.at(j);
-        qDebug() << "realm=" << authResponse.at(0) << " qop=" << authResponse.at(1) << " nonce=" << authResponse.at(2) << " opaque=" << authResponse.at(3);
+        //qDebug() << "realm=" << authResponse.at(0) << " qop=" << authResponse.at(1) << " nonce=" << authResponse.at(2) << " opaque=" << authResponse.at(3);
 
         QByteArray dlm = QString(":").toLocal8Bit();
         QByteArray HA1inp = QString("admin").toLocal8Bit() + dlm + authResponse.at(0).toLocal8Bit() + dlm + QString("admin").toLocal8Bit();
@@ -124,22 +126,36 @@ void getImage::downloadFinished(QNetworkReply *reply){
         //QString(":425529402:00000001:d655ee94b416337a:auth:").toLocal8Bit() + HA2byte;
         //QByteArray inp = HA1byte + QString(":425529402:00000001:d655ee94b416337a:auth:").toLocal8Bit() + HA2byte;
         QString Resp =  QString(QCryptographicHash::hash((inp),QCryptographicHash::Md5).toHex());
-        qDebug() << "HA1=" << HA1 << " HA2=" << HA2 << " Resp=" << Resp;
+        //qDebug() << "HA1=" << HA1 << " HA2=" << HA2 << " Resp=" << Resp;
 
+
+        authorHeader = QByteArray(QString("username=\"%1\", realm=\"%2\", "
+                           "nonce=\"%3\", uri=\"%4\", "
+                           "response=\"%5\", opaque=\"%6\", "
+                           "qop=%7, nc=%8, cnonce=\"%9\"").
+                           arg("admin").arg(authResponse.at(0)).
+                           arg(authResponse.at(2)).arg("/cgi-bin/snapshot.cgi").
+                           arg(Resp).arg(authResponse.at(3)).
+                           arg(authResponse.at(1)).arg("00000001").arg("d655ee94b416337a").toAscii());
+        /*
         QNetworkRequest request(url);
         request.setRawHeader("Authorization", "Digest " +
                              QByteArray(QString("username=\"%1\", realm=\"%2\", "
                                                 "nonce=\"%3\", uri=\"%4\", "
                                                 "response=\"%5\", opaque=\"%6\", "
-                                                "qop=\"%7\", nc=\"%8\", cnonce=\"%9\"").
+                                                "qop=%7, nc=%8, cnonce=\"%9\"").
                                                 arg("admin").arg(authResponse.at(0)).
                                                 arg(authResponse.at(2)).arg("/cgi-bin/snapshot.cgi").
                                                 arg(Resp).arg(authResponse.at(3)).
                                                 arg(authResponse.at(1)).arg("00000001").arg("d655ee94b416337a").
                                                 toAscii()));
         manager.get(request);
+        */
+        //qDebug() << QString(authorHeader);
 
     } else {
+
+        authenticated = true;
 
         if (replyDelay <= 1000){
             repliesAborted = false;
