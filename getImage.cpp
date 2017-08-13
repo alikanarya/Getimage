@@ -57,8 +57,10 @@ QImage* getImage::toImage(QIODevice *data){
 void getImage::makeRequest(unsigned int id, bool autoId){
 
     time.getSystemTimeMsec();
-    if (autoId)
+    if (autoId) {
         id = requestId++;
+        requestNo.append(id);
+    }
 
     QNetworkRequest request(url);
     request.setRawHeader("Authorization","Digest " + authorHeader);
@@ -68,7 +70,6 @@ void getImage::makeRequest(unsigned int id, bool autoId){
     request.setRawHeader(RequestSecond, QString::number(time.second).toUtf8());
     request.setRawHeader(RequestMSecond, QString::number(time.msec).toUtf8());
     manager.get(request);
-    //requestNo.append(id);
 
     //request.setRawHeader("Authorization","Basic " + QByteArray(QString("%1:%2").arg("admin").arg("admin").toAscii()).toBase64());
     /*
@@ -83,10 +84,10 @@ void getImage::makeRequest(unsigned int id, bool autoId){
 void getImage::run(){
 
     //if (_flag) {
-    //if (requestNo.size() <= 2) {
+    if (requestNo.size() <= 2 && _flag) {
         makeRequest(-1, true);
-        _flag = false;
-    //}
+        //_flag = false;
+    }
 }
 
 void getImage::downloadFinished(QNetworkReply *reply){
@@ -103,7 +104,7 @@ void getImage::downloadFinished(QNetworkReply *reply){
 
     if (reply->error() == QNetworkReply::AuthenticationRequiredError) {
 
-        _flag = false;
+        //_flag = false;
         authenticated = false;
         QByteArray httpHeaders = reply->rawHeader("WWW-Authenticate");
         httpHeaders.replace(QByteArray("\""),QByteArray(""));
@@ -149,6 +150,7 @@ void getImage::downloadFinished(QNetworkReply *reply){
         //qDebug() << QString(authorHeader);
 
         makeRequest(reply->request().rawHeader(RequestID).toUInt(), false);
+        _flag = true;
 
     } else if (reply->error()){
 
@@ -157,8 +159,10 @@ void getImage::downloadFinished(QNetworkReply *reply){
 
     } else {
 
-        _flag = true;
+        _flag = false;
+        //_flag = true;
         authenticated = true;
+        requestNo.removeAt( requestNo.indexOf( reply->request().rawHeader(RequestID).toUInt() ));
 
         //if (replyDelay <= 1000){
             repliesAborted = false;
