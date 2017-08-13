@@ -50,16 +50,19 @@ class getImage: public QObject {
 
         bool repliesAborted;
 
+        QList<int> requestNo;
         int requestTime;
         int replyTime;
         bool cameraDown;
         bool authenticated = false;
+        bool _flag;
         QByteArray authorHeader = "";
         QByteArray dlm = QString(":").toLocal8Bit();
 
         getImage(QString _url);                 // constructor
         getImage(QString _url,int _fpsTarget);  // constructor
         QImage* toImage(QIODevice *data);       // converts net. data to image
+        void makeRequest(unsigned int id, bool autoId);
         void reset();                           // resets some parameters
         int calcTotalMsec(int hour, int min, int second, int msec);     // calc. total msec of time values
 

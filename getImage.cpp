@@ -32,6 +32,8 @@ getImage::getImage(QString _url,int _fpsTarget){
     url.setUrl(_url);
     fpsTarget = _fpsTarget;
     repliesAborted = false;
+    _flag = true;
+    requestNo.clear();
 
     Q_ASSERT(&manager);
     //connect(&manager, SIGNAL(authenticationRequired(QNetworkReply*,QAuthenticator*)), SLOT(onAuthenticationRequestSlot(QNetworkReply*,QAuthenticator*)));
@@ -52,26 +54,39 @@ QImage* getImage::toImage(QIODevice *data){
     return temp;
 }
 
-void getImage::run(){
+void getImage::makeRequest(unsigned int id, bool autoId){
+
     time.getSystemTimeMsec();
+    if (autoId)
+        id = requestId++;
 
     QNetworkRequest request(url);
+    request.setRawHeader("Authorization","Digest " + authorHeader);
+    request.setRawHeader(RequestID, QString::number(id).toUtf8());
+    request.setRawHeader(RequestHour, QString::number(time.hour).toUtf8());
+    request.setRawHeader(RequestMinute, QString::number(time.minute).toUtf8());
+    request.setRawHeader(RequestSecond, QString::number(time.second).toUtf8());
+    request.setRawHeader(RequestMSecond, QString::number(time.msec).toUtf8());
+    manager.get(request);
+    //requestNo.append(id);
+
     //request.setRawHeader("Authorization","Basic " + QByteArray(QString("%1:%2").arg("admin").arg("admin").toAscii()).toBase64());
     /*
     request.setRawHeader("Authorization","Digest " +  QByteArray(QString("username=\"%1\", nonce=\"%2\", created=\"%3\"").
                                                                  arg("admin").
                                                                  arg("boAIt2qKEgFyncxdP6R8MdbkV2c=").
                                                                  arg("2017-08-10T22:02:33.000Z").toAscii()));
-    //arg("2017-08-10T19:17:22.000Z").toAscii()).toBase64());
     */
-    request.setRawHeader("Authorization","Digest " + authorHeader);
-    request.setRawHeader(RequestID, QString::number(requestId).toUtf8());
-    request.setRawHeader(RequestHour, QString::number(time.hour).toUtf8());
-    request.setRawHeader(RequestMinute, QString::number(time.minute).toUtf8());
-    request.setRawHeader(RequestSecond, QString::number(time.second).toUtf8());
-    request.setRawHeader(RequestMSecond, QString::number(time.msec).toUtf8());
-    manager.get(request);
-    requestId++;
+
+}
+
+void getImage::run(){
+
+    //if (_flag) {
+    //if (requestNo.size() <= 2) {
+        makeRequest(-1, true);
+        _flag = false;
+    //}
 }
 
 void getImage::downloadFinished(QNetworkReply *reply){
@@ -88,6 +103,7 @@ void getImage::downloadFinished(QNetworkReply *reply){
 
     if (reply->error() == QNetworkReply::AuthenticationRequiredError) {
 
+        _flag = false;
         authenticated = false;
         QByteArray httpHeaders = reply->rawHeader("WWW-Authenticate");
         httpHeaders.replace(QByteArray("\""),QByteArray(""));
@@ -119,7 +135,6 @@ void getImage::downloadFinished(QNetworkReply *reply){
 
         QString Resp =  QString(QCryptographicHash::hash((inp),QCryptographicHash::Md5).toHex());
 
-
         authorHeader = QByteArray(QString("username=\"%1\", realm=\"%2\", "
                            "nonce=\"%3\", uri=\"%4\", "
                            "response=\"%5\", opaque=\"%6\", "
@@ -129,18 +144,20 @@ void getImage::downloadFinished(QNetworkReply *reply){
                            arg(Resp).arg(authResponse.at(3)).
                            arg(authResponse.at(1)).arg("00000001").arg("d655ee94b416337a").toAscii());
 
-        //qDebug() << httpHeaders;
-        qDebug() << "downloadFinished() request ID: " << reply->request().rawHeader(RequestID) << " " << httpHeaders;
+        //qDebug() << "downloadFinished() request ID: " << reply->request().rawHeader(RequestID) << " " << httpHeaders;
         //qDebug() << "HA1=" << QString(HA1byte) << " HA2=" << QString(HA2byte) << " Resp=" << Resp;
         //qDebug() << QString(authorHeader);
+
+        makeRequest(reply->request().rawHeader(RequestID).toUInt(), false);
 
     } else if (reply->error()){
 
         errorCount++;
-        qDebug() << errorCount << " downloadFinished() " << reply->errorString();
+        //qDebug() << errorCount << " downloadFinished() " << reply->errorString();
 
     } else {
 
+        _flag = true;
         authenticated = true;
 
         //if (replyDelay <= 1000){
@@ -155,7 +172,7 @@ void getImage::downloadFinished(QNetworkReply *reply){
             _data->requestMSecond = reply->request().rawHeader( RequestMSecond );
             _data->shown = false;
 
-            qDebug() << "downloadFinished() request ID: " << _data->requestId;
+            //qDebug() << "downloadFinished() request ID: " << _data->requestId;
 
             if (_data->image->format() != QImage::Format_Invalid) {
                 imageList.append(_data);
@@ -179,8 +196,6 @@ void getImage::downloadFinished(QNetworkReply *reply){
         }*/
 
     }
-
-
 
     reply->deleteLater();
 }
@@ -214,6 +229,7 @@ void getImage::checkReplyFinished(QNetworkReply *reply){
 
 void getImage::reset(){
     requestId = 0;
+    requestNo.clear();
     replyId = 0;
     errorCount = 0;
     imageList.clear();
