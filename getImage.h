@@ -44,6 +44,7 @@ class getImage: public QObject {
         getSystemTime time;                     // system time class
         QList<networkData *> imageList;         // net. data buffer
         int fpsTarget;                          // size of the buffer
+        int fpsRequest;
         unsigned int requestId;                 // send data id no
         int replyId;                            // receive no; to dump the buffer
         unsigned int errorCount;                // net. reply error count

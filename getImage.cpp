@@ -31,6 +31,7 @@ getImage::getImage(QString _url,int _fpsTarget){
     errorCount = 0;
     url.setUrl(_url);
     fpsTarget = _fpsTarget;
+    fpsRequest = 0;
     repliesAborted = false;
     _flag = true;
     requestNo.clear();
@@ -60,6 +61,7 @@ void getImage::makeRequest(unsigned int id, bool autoId){
     if (autoId) {
         id = requestId++;
         requestNo.append(id);
+        //qDebug() << id;
     }
 
     QNetworkRequest request(url);
@@ -70,6 +72,7 @@ void getImage::makeRequest(unsigned int id, bool autoId){
     request.setRawHeader(RequestSecond, QString::number(time.second).toUtf8());
     request.setRawHeader(RequestMSecond, QString::number(time.msec).toUtf8());
     manager.get(request);
+
 
     //request.setRawHeader("Authorization","Basic " + QByteArray(QString("%1:%2").arg("admin").arg("admin").toAscii()).toBase64());
     /*
@@ -84,8 +87,10 @@ void getImage::makeRequest(unsigned int id, bool autoId){
 void getImage::run(){
 
     //if (_flag) {
-    if (requestNo.size() <= 2 && _flag) {
+//    if ((requestNo.size()==1 && _flag) || (requestNo.size()==0) || (requestNo.size()==2 && _flag)) {
+    if ((requestNo.size()==1 && _flag) || (requestNo.size()==0)) {
         makeRequest(-1, true);
+        fpsRequest++;
         //_flag = false;
     }
 }
@@ -237,6 +242,7 @@ void getImage::reset(){
     replyId = 0;
     errorCount = 0;
     imageList.clear();
+    fpsRequest = 0;
 }
 
 int getImage::calcTotalMsec(int hour, int min, int second, int msec){
