@@ -52,6 +52,7 @@ class getImage: public QObject {
         bool repliesAborted;
 
         QList<int> requestNo;
+        int reqNo;
         int requestTime;
         int replyTime;
         bool cameraDown;

@@ -35,18 +35,22 @@ getImage::getImage(QString _url,int _fpsTarget){
     repliesAborted = false;
     _flag = true;
     requestNo.clear();
+    reqNo = 0;
 
     Q_ASSERT(&manager);
-    //connect(&manager, SIGNAL(authenticationRequired(QNetworkReply*,QAuthenticator*)), SLOT(onAuthenticationRequestSlot(QNetworkReply*,QAuthenticator*)));
+    connect(&manager, SIGNAL(authenticationRequired(QNetworkReply*,QAuthenticator*)), SLOT(onAuthenticationRequestSlot(QNetworkReply*,QAuthenticator*)));
     connect(&manager, SIGNAL(finished(QNetworkReply*)),SLOT(downloadFinished(QNetworkReply*)));
 }
 
 void getImage::onAuthenticationRequestSlot(QNetworkReply *aReply, QAuthenticator *aAuthenticator){
-    qDebug() << " realm: " << aAuthenticator->options().values().at(0).toString()
-             << " reply: " << aReply->rawHeaderList();
+    //qDebug() << " realm: " << aAuthenticator->options().values().at(0).toString()
+    //         << " reply: " << aReply->rawHeaderList();
     //<< Q_FUNC_INFO << aAuthenticator->realm()
     aAuthenticator->setUser(user);
     aAuthenticator->setPassword(password);
+    aAuthenticator->setOption("realm", "Digest-MD5");
+    _flag = true;
+
 }
 
 QImage* getImage::toImage(QIODevice *data){
@@ -58,14 +62,17 @@ QImage* getImage::toImage(QIODevice *data){
 void getImage::makeRequest(unsigned int id, bool autoId){
 
     time.getSystemTimeMsec();
+    QNetworkRequest request(url);
     if (autoId) {
         id = requestId++;
-        requestNo.append(id);
+        reqNo++;
+        //requestNo.append(id);
         //qDebug() << id;
+        request.setRawHeader("Authorization","Basic " + QByteArray(QString("%1:%2").arg("admin").arg("admin").toAscii()));
+    } else {
+        request.setRawHeader("Authorization","Digest " + authorHeader);
     }
 
-    QNetworkRequest request(url);
-    request.setRawHeader("Authorization","Digest " + authorHeader);
     request.setRawHeader(RequestID, QString::number(id).toUtf8());
     request.setRawHeader(RequestHour, QString::number(time.hour).toUtf8());
     request.setRawHeader(RequestMinute, QString::number(time.minute).toUtf8());
@@ -74,7 +81,6 @@ void getImage::makeRequest(unsigned int id, bool autoId){
     manager.get(request);
 
 
-    //request.setRawHeader("Authorization","Basic " + QByteArray(QString("%1:%2").arg("admin").arg("admin").toAscii()).toBase64());
     /*
     request.setRawHeader("Authorization","Digest " +  QByteArray(QString("username=\"%1\", nonce=\"%2\", created=\"%3\"").
                                                                  arg("admin").
@@ -87,16 +93,18 @@ void getImage::makeRequest(unsigned int id, bool autoId){
 void getImage::run(){
 
     //if (_flag) {
-//    if ((requestNo.size()==1 && _flag) || (requestNo.size()==0) || (requestNo.size()==2 && _flag)) {
-    if ((requestNo.size()==1 && _flag) || (requestNo.size()==0)) {
+    //if ((requestNo.size()<=1 && requestNo.size()>0 && _flag) || (requestNo.size()==0)) {
+//    if ((requestNo.size()==1 && _flag) || (requestNo.size()==0)) {
+    if (reqNo  <= 2 && _flag) {
         makeRequest(-1, true);
         fpsRequest++;
-        //_flag = false;
+        _flag = false;
     }
 }
 
 void getImage::downloadFinished(QNetworkReply *reply){
 
+    reqNo--;
     int hour = reply->request().rawHeader( RequestHour ).toInt();
     int minute = reply->request().rawHeader( RequestMinute ).toInt();
     int second = reply->request().rawHeader( RequestSecond ).toInt();
@@ -108,7 +116,9 @@ void getImage::downloadFinished(QNetworkReply *reply){
     int replyDelay = time.getSystemTimeMsec() - calcTotalMsec(hour, minute, second, msec);
 
     if (reply->error() == QNetworkReply::AuthenticationRequiredError) {
+        //qDebug() << reply->errorString();
 
+        /*
         //_flag = false;
         authenticated = false;
         QByteArray httpHeaders = reply->rawHeader("WWW-Authenticate");
@@ -156,6 +166,7 @@ void getImage::downloadFinished(QNetworkReply *reply){
 
         makeRequest(reply->request().rawHeader(RequestID).toUInt(), false);
         _flag = true;
+        */
 
     } else if (reply->error()){
 
@@ -164,7 +175,7 @@ void getImage::downloadFinished(QNetworkReply *reply){
 
     } else {
 
-        _flag = false;
+        //_flag = false;
         //_flag = true;
         authenticated = true;
         requestNo.removeAt( requestNo.indexOf( reply->request().rawHeader(RequestID).toUInt() ));
@@ -243,6 +254,8 @@ void getImage::reset(){
     errorCount = 0;
     imageList.clear();
     fpsRequest = 0;
+    reqNo = 0;
+
 }
 
 int getImage::calcTotalMsec(int hour, int min, int second, int msec){
