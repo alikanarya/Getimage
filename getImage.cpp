@@ -4,8 +4,6 @@
 #include <QRegularExpressionMatchIterator>
 #include <QCryptographicHash>
 
-static const char *user = "admin";//anonymity";
-static const char *password = "admin";
 
 networkData::networkData(){
     image = new QImage;
@@ -18,6 +16,7 @@ networkData::~networkData(){
 }
 
 getImage::getImage(QString _url){
+
     url.setUrl(_url);
     cameraDown = true;
     requestTime = 0;
@@ -25,46 +24,51 @@ getImage::getImage(QString _url){
     connect(&manager, SIGNAL(finished(QNetworkReply*)),SLOT(checkReplyFinished(QNetworkReply*)));
 }
 
-getImage::getImage(QString _url,int _fpsTarget){
+getImage::getImage(QString _url,int _dataBuffer){
+
     requestId = 0;
     replyId = 0;
     errorCount = 0;
     url.setUrl(_url);
-    fpsTarget = _fpsTarget;
+    dataBuffer = _dataBuffer;
     fpsRequest = 0;
     repliesAborted = false;
     _flag = true;
-    requestNo.clear();
-    reqNo = 0;
+    //requestNo.clear();
+    //reqNo = 0;
 
     Q_ASSERT(&manager);
     connect(&manager, SIGNAL(authenticationRequired(QNetworkReply*,QAuthenticator*)), SLOT(onAuthenticationRequestSlot(QNetworkReply*,QAuthenticator*)));
     connect(&manager, SIGNAL(finished(QNetworkReply*)),SLOT(downloadFinished(QNetworkReply*)));
 }
 
-void getImage::onAuthenticationRequestSlot(QNetworkReply *aReply, QAuthenticator *aAuthenticator){
-    //qDebug() << " realm: " << aAuthenticator->options().values().at(0).toString()
-    //         << " reply: " << aReply->rawHeaderList();
-    //<< Q_FUNC_INFO << aAuthenticator->realm()
-    aAuthenticator->setUser(user);
-    aAuthenticator->setPassword(password);
-    aAuthenticator->setOption("realm", "Digest-MD5");
-    //_flag = true;
+getImage::~getImage(){
+
+    imageList.clear();
 }
 
 void getImage::run(){
 
     if (_flag) {
-    //if ((requestNo.size()<=1 && requestNo.size()>0 && _flag) || (requestNo.size()==0)) {
-//    if ((requestNo.size()==1 && _flag) || (requestNo.size()==0)) {
-    //--if (reqNo  <= 1 ) {
         makeRequest(-1, true);
         fpsRequest++;
         _flag = false;
+        emit requestMade();
     }
 }
 
+void getImage::onAuthenticationRequestSlot(QNetworkReply *aReply, QAuthenticator *aAuthenticator){
+
+    //qDebug() << " realm: " << aAuthenticator->options().values().at(0).toString();
+    aAuthenticator->setUser(user);
+    aAuthenticator->setPassword(password);
+    aAuthenticator->setOption("realm", "Digest-MD5");
+    //_flag = true;     // ENABLE MAKING REQUEST WHILE DOWNLOADING THE DATA JUST AFTER AUTHENTICATION
+}
+
+
 QImage* getImage::toImage(QIODevice *data){
+
     QImage *temp = new QImage;
     temp->loadFromData(data->readAll());
     return temp;
@@ -76,10 +80,8 @@ void getImage::makeRequest(unsigned int id, bool autoId){
     QNetworkRequest request(url);
     if (autoId) {
         id = requestId++;
-        reqNo++;
-        //requestNo.append(id);
-        //qDebug() << id;
-        request.setRawHeader("Authorization","Basic " + QByteArray(QString("%1:%2").arg("admin").arg("admin").toAscii()));
+        //reqNo++; //requestNo.append(id); //qDebug() << id;
+        request.setRawHeader("Authorization","Basic " + QByteArray(QString("%1:%2").arg(user).arg(password).toAscii()));
     } else {
         request.setRawHeader("Authorization","Digest " + authorHeader);
     }
@@ -97,13 +99,13 @@ void getImage::makeRequest(unsigned int id, bool autoId){
 void getImage::downloadFinished(QNetworkReply *reply){
 
     _flag = true;
+    emit downloadCompleted();
 
-    reqNo--;
+    //reqNo--;
     int hour = reply->request().rawHeader( RequestHour ).toInt();
     int minute = reply->request().rawHeader( RequestMinute ).toInt();
     int second = reply->request().rawHeader( RequestSecond ).toInt();
     int msec = reply->request().rawHeader( RequestMSecond ).toInt();
-
 
     //qDebug()<<Q_FUNC_INFO << reply->rawHeader("CONNECTION") << ":" << reply->rawHeader("CONTENT-LENGTH");
 
@@ -111,70 +113,14 @@ void getImage::downloadFinished(QNetworkReply *reply){
 
     if (reply->error() == QNetworkReply::AuthenticationRequiredError) {
         //qDebug() << reply->errorString();
-
-        /*
-        //_flag = false;
-        authenticated = false;
-        QByteArray httpHeaders = reply->rawHeader("WWW-Authenticate");
-        httpHeaders.replace(QByteArray("\""),QByteArray(""));
-        httpHeaders += ",";
-        QRegularExpression regex("=(.*?),");
-        QRegularExpressionMatchIterator i = regex.globalMatch(httpHeaders);
-        QList<QString> authResponse;
-        while (i.hasNext()) {
-            QRegularExpressionMatch match = i.next();
-            if (match.hasMatch()) { // realm, qop, nonce, opaque
-                authResponse.append(match.captured(1));
-            }
-        }
-
-        //for (int j=0; j<authResponse.size(); j++) qDebug() << authResponse.at(j);
-        //qDebug() << "realm=" << authResponse.at(0) << " qop=" << authResponse.at(1) << " nonce=" << authResponse.at(2) << " opaque=" << authResponse.at(3);
-
-        QByteArray HA1inp = QString("admin").toLocal8Bit() + dlm + authResponse.at(0).toLocal8Bit() + dlm + QString("admin").toLocal8Bit();
-        QByteArray HA1byte = QCryptographicHash::hash((HA1inp),QCryptographicHash::Md5).toHex();
-
-        QByteArray HA2inp = QString("GET").toLocal8Bit() + dlm + QString("/cgi-bin/snapshot.cgi").toLocal8Bit();
-        QByteArray HA2byte = QCryptographicHash::hash((HA2inp),QCryptographicHash::Md5).toHex();
-
-        QByteArray inp = HA1byte + dlm +
-                authResponse.at(2).toLocal8Bit() + dlm +
-                QString("00000001").toLocal8Bit() + dlm +
-                QString("d655ee94b416337a").toLocal8Bit() + dlm +
-                authResponse.at(1).toLocal8Bit() + dlm + HA2byte;
-
-        QString Resp =  QString(QCryptographicHash::hash((inp),QCryptographicHash::Md5).toHex());
-
-        authorHeader = QByteArray(QString("username=\"%1\", realm=\"%2\", "
-                           "nonce=\"%3\", uri=\"%4\", "
-                           "response=\"%5\", opaque=\"%6\", "
-                           "qop=%7, nc=%8, cnonce=\"%9\"").
-                           arg("admin").arg(authResponse.at(0)).
-                           arg(authResponse.at(2)).arg("/cgi-bin/snapshot.cgi").
-                           arg(Resp).arg(authResponse.at(3)).
-                           arg(authResponse.at(1)).arg("00000001").arg("d655ee94b416337a").toAscii());
-
-        //qDebug() << "downloadFinished() request ID: " << reply->request().rawHeader(RequestID) << " " << httpHeaders;
-        //qDebug() << "HA1=" << QString(HA1byte) << " HA2=" << QString(HA2byte) << " Resp=" << Resp;
-        //qDebug() << QString(authorHeader);
-
-        makeRequest(reply->request().rawHeader(RequestID).toUInt(), false);
-        _flag = true;
-        */
-
     } else if (reply->error()){
-
         errorCount++;
         //qDebug() << errorCount << " downloadFinished() " << reply->errorString();
-
     } else {
 
-        //_flag = false;
-        //_flag = true;
-        authenticated = true;
-        requestNo.removeAt( requestNo.indexOf( reply->request().rawHeader(RequestID).toUInt() ));
+        //requestNo.removeAt( requestNo.indexOf( reply->request().rawHeader(RequestID).toUInt() ));
 
-        //if (replyDelay <= 1000){
+        if (replyDelay <= 1000){
             repliesAborted = false;
 
             networkData *_data = new networkData();
@@ -186,29 +132,27 @@ void getImage::downloadFinished(QNetworkReply *reply){
             _data->requestMSecond = reply->request().rawHeader( RequestMSecond );
             _data->shown = false;
 
-            //qDebug() << "downloadFinished() request ID: " << _data->requestId;
-
             if (_data->image->format() != QImage::Format_Invalid) {
                 imageList.append(_data);
 
                 replyId++;
-                //qDebug() << "downloadFinished() reply ID: " << replyId;
 
-                if (replyId >= fpsTarget) replyId = 0;
+                if (replyId >= dataBuffer) replyId = 0;
 
-                if (imageList.size() == fpsTarget){
+                if (imageList.size() == dataBuffer){
                     delete imageList[0];
                     imageList.removeFirst();
                 }
+
+//                emit downloadCompleted();
             } else
                 delete _data;
 
-        /*} else {
+        } else {
 
             repliesAborted = true;
             reply->abort();
-        }*/
-
+        }
     }
 
     reply->deleteLater();
@@ -216,6 +160,7 @@ void getImage::downloadFinished(QNetworkReply *reply){
 
 
 void getImage::checkHost(){
+
     int replyDelay = replyTime - requestTime;
 
     if (replyDelay >=0 && replyDelay <= 1000)
@@ -230,9 +175,10 @@ void getImage::checkHost(){
 }
 
 void getImage::checkReplyFinished(QNetworkReply *reply){
+
     if (reply->error()) {
         //errorCount++;
-/**/qDebug() << "rf" << reply->errorString();
+        //qDebug() << "rf" << reply->errorString();
     } else {
         replyTime = time.getSystemTimeMsec();
     }
@@ -241,21 +187,68 @@ void getImage::checkReplyFinished(QNetworkReply *reply){
 }
 
 void getImage::reset(){
+
     requestId = 0;
-    requestNo.clear();
     replyId = 0;
     errorCount = 0;
     imageList.clear();
     fpsRequest = 0;
-    reqNo = 0;
+    //requestNo.clear();
+    //reqNo = 0;
 
 }
 
 int getImage::calcTotalMsec(int hour, int min, int second, int msec){
+
     return ( (hour * 3600 + min * 60 + second) * 1000 + msec );
 }
 
-getImage::~getImage(){
-    imageList.clear();
+void getImage::digestCalc(QNetworkReply *reply){
+
+    QByteArray httpHeaders = reply->rawHeader("WWW-Authenticate");
+    httpHeaders.replace(QByteArray("\""),QByteArray(""));
+    httpHeaders += ",";
+    QRegularExpression regex("=(.*?),");
+    QRegularExpressionMatchIterator i = regex.globalMatch(httpHeaders);
+    QList<QString> authResponse;
+    while (i.hasNext()) {
+        QRegularExpressionMatch match = i.next();
+        if (match.hasMatch()) { // realm, qop, nonce, opaque
+            authResponse.append(match.captured(1));
+        }
+    }
+
+    //for (int j=0; j<authResponse.size(); j++) qDebug() << authResponse.at(j);
+    //qDebug() << "realm=" << authResponse.at(0) << " qop=" << authResponse.at(1) << " nonce=" << authResponse.at(2) << " opaque=" << authResponse.at(3);
+
+    //QByteArray HA1inp = QString("admin").toLocal8Bit() + dlm + authResponse.at(0).toLocal8Bit() + dlm + QString("admin").toLocal8Bit();
+    QByteArray HA1inp = user.toLocal8Bit() + dlm + authResponse.at(0).toLocal8Bit() + dlm + password.toLocal8Bit();
+    QByteArray HA1byte = QCryptographicHash::hash((HA1inp),QCryptographicHash::Md5).toHex();
+
+    QByteArray HA2inp = QString("GET").toLocal8Bit() + dlm + QString("/cgi-bin/snapshot.cgi").toLocal8Bit();
+    QByteArray HA2byte = QCryptographicHash::hash((HA2inp),QCryptographicHash::Md5).toHex();
+
+    QByteArray inp = HA1byte + dlm +
+            authResponse.at(2).toLocal8Bit() + dlm +
+            QString("00000001").toLocal8Bit() + dlm +
+            QString("d655ee94b416337a").toLocal8Bit() + dlm +
+            authResponse.at(1).toLocal8Bit() + dlm + HA2byte;
+
+    QString Resp =  QString(QCryptographicHash::hash((inp),QCryptographicHash::Md5).toHex());
+
+    authorHeader = QByteArray(QString("username=\"%1\", realm=\"%2\", "
+                       "nonce=\"%3\", uri=\"%4\", "
+                       "response=\"%5\", opaque=\"%6\", "
+                       "qop=%7, nc=%8, cnonce=\"%9\"").
+                       arg(user).arg(authResponse.at(0)).
+                       //arg("admin").arg(authResponse.at(0)).
+                       arg(authResponse.at(2)).arg("/cgi-bin/snapshot.cgi").
+                       arg(Resp).arg(authResponse.at(3)).
+                       arg(authResponse.at(1)).arg("00000001").arg("d655ee94b416337a").toAscii());
+
+    //qDebug() << "downloadFinished() request ID: " << reply->request().rawHeader(RequestID) << " " << httpHeaders;
+    //qDebug() << "HA1=" << QString(HA1byte) << " HA2=" << QString(HA2byte) << " Resp=" << Resp;
+    //qDebug() << QString(authorHeader);
 }
+
 
