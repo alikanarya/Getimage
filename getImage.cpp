@@ -49,8 +49,19 @@ void getImage::onAuthenticationRequestSlot(QNetworkReply *aReply, QAuthenticator
     aAuthenticator->setUser(user);
     aAuthenticator->setPassword(password);
     aAuthenticator->setOption("realm", "Digest-MD5");
-    _flag = true;
+    //_flag = true;
+}
 
+void getImage::run(){
+
+    if (_flag) {
+    //if ((requestNo.size()<=1 && requestNo.size()>0 && _flag) || (requestNo.size()==0)) {
+//    if ((requestNo.size()==1 && _flag) || (requestNo.size()==0)) {
+    //--if (reqNo  <= 1 ) {
+        makeRequest(-1, true);
+        fpsRequest++;
+        _flag = false;
+    }
 }
 
 QImage* getImage::toImage(QIODevice *data){
@@ -80,29 +91,12 @@ void getImage::makeRequest(unsigned int id, bool autoId){
     request.setRawHeader(RequestMSecond, QString::number(time.msec).toUtf8());
     manager.get(request);
 
-
-    /*
-    request.setRawHeader("Authorization","Digest " +  QByteArray(QString("username=\"%1\", nonce=\"%2\", created=\"%3\"").
-                                                                 arg("admin").
-                                                                 arg("boAIt2qKEgFyncxdP6R8MdbkV2c=").
-                                                                 arg("2017-08-10T22:02:33.000Z").toAscii()));
-    */
-
-}
-
-void getImage::run(){
-
-    //if (_flag) {
-    //if ((requestNo.size()<=1 && requestNo.size()>0 && _flag) || (requestNo.size()==0)) {
-//    if ((requestNo.size()==1 && _flag) || (requestNo.size()==0)) {
-    if (reqNo  <= 2 && _flag) {
-        makeRequest(-1, true);
-        fpsRequest++;
-        _flag = false;
-    }
+    //request.setRawHeader("Authorization","Digest " +  QByteArray(QString("username=\"%1\", nonce=\"%2\", created=\"%3\"").arg("admin").arg("boAIt2qKEgFyncxdP6R8MdbkV2c=").arg("2017-08-10T22:02:33.000Z").toAscii()));
 }
 
 void getImage::downloadFinished(QNetworkReply *reply){
+
+    _flag = true;
 
     reqNo--;
     int hour = reply->request().rawHeader( RequestHour ).toInt();
@@ -111,7 +105,7 @@ void getImage::downloadFinished(QNetworkReply *reply){
     int msec = reply->request().rawHeader( RequestMSecond ).toInt();
 
 
-//qDebug()<<Q_FUNC_INFO << reply->rawHeader("CONNECTION") << ":" << reply->rawHeader("CONTENT-LENGTH");
+    //qDebug()<<Q_FUNC_INFO << reply->rawHeader("CONNECTION") << ":" << reply->rawHeader("CONTENT-LENGTH");
 
     int replyDelay = time.getSystemTimeMsec() - calcTotalMsec(hour, minute, second, msec);
 
@@ -245,7 +239,6 @@ void getImage::checkReplyFinished(QNetworkReply *reply){
 
     reply->deleteLater();
 }
-
 
 void getImage::reset(){
     requestId = 0;
