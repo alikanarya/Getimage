@@ -144,7 +144,7 @@ void getImage::downloadFinished(QNetworkReply *reply){
                     imageList.removeFirst();
                 }
 
-//                emit downloadCompleted();
+                emit lastDataTaken();
             } else
                 delete _data;
 

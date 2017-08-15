@@ -90,6 +90,7 @@ class getImage: public QObject {
 
         void requestMade();
         void downloadCompleted();
+        void lastDataTaken();
 };
 
 #endif // GETIMAGE_H
