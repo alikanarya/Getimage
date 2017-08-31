@@ -14,6 +14,7 @@
 #include <QAuthenticator>
 #include <QUrl>
 #include <QImage>
+#include <QTimer>
 //#include <QNetworkConfiguration>
 //#include <QTcpSocket>
 
@@ -54,6 +55,7 @@ class getImage: public QObject {
         int replyId;                            // receive no; to dump the buffer
         unsigned int errorCount;                // net. reply error count
 
+        QTimer *requestTimeOut;
         bool repliesAborted;
 
         QList<int> requestNo;           // not used
@@ -85,12 +87,15 @@ class getImage: public QObject {
         void downloadFinished(QNetworkReply *reply);    // receives data
         void checkReplyFinished(QNetworkReply *reply);
         void onAuthenticationRequestSlot(QNetworkReply *aReply, QAuthenticator *aAuthenticator);
+        void timeOut();
 
     signals:
 
         void requestMade();
         void downloadCompleted();
         void lastDataTaken();
+        void cameraDownSignal();
+        void cameraOnlineSignal();
 };
 
 #endif // GETIMAGE_H

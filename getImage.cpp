@@ -30,6 +30,7 @@ getImage::getImage(QString _url,int _dataBuffer){
     replyId = 0;
     errorCount = 0;
     url.setUrl(_url);
+    cameraDown = true;
     dataBuffer = _dataBuffer;
     fpsRequest = 0;
     repliesAborted = false;
@@ -40,6 +41,10 @@ getImage::getImage(QString _url,int _dataBuffer){
     Q_ASSERT(&manager);
     connect(&manager, SIGNAL(authenticationRequired(QNetworkReply*,QAuthenticator*)), SLOT(onAuthenticationRequestSlot(QNetworkReply*,QAuthenticator*)));
     connect(&manager, SIGNAL(finished(QNetworkReply*)),SLOT(downloadFinished(QNetworkReply*)));
+
+    requestTimeOut = new QTimer(this);
+    connect(requestTimeOut, SIGNAL(timeout()), this, SLOT(timeOut()));
+
 }
 
 getImage::~getImage(){
@@ -93,10 +98,17 @@ void getImage::makeRequest(unsigned int id, bool autoId){
     request.setRawHeader(RequestMSecond, QString::number(time.msec).toUtf8());
     manager.get(request);
 
+    cameraDown = false;
+    requestTimeOut->start(1000);
+
     //request.setRawHeader("Authorization","Digest " +  QByteArray(QString("username=\"%1\", nonce=\"%2\", created=\"%3\"").arg("admin").arg("boAIt2qKEgFyncxdP6R8MdbkV2c=").arg("2017-08-10T22:02:33.000Z").toAscii()));
 }
 
 void getImage::downloadFinished(QNetworkReply *reply){
+
+    requestTimeOut->stop();
+    cameraDown = false;
+    emit cameraOnlineSignal();
 
     _flag = true;
     emit downloadCompleted();
@@ -251,4 +263,7 @@ void getImage::digestCalc(QNetworkReply *reply){
     //qDebug() << QString(authorHeader);
 }
 
-
+void getImage::timeOut(){
+    cameraDown = true;
+    emit cameraDownSignal();
+}
