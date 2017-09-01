@@ -38,6 +38,7 @@ getImage::getImage(QString _url,int _dataBuffer){
     //requestNo.clear();
     //reqNo = 0;
 
+    manager.setCookieJar(&cookieJar);
     Q_ASSERT(&manager);
     connect(&manager, SIGNAL(authenticationRequired(QNetworkReply*,QAuthenticator*)), SLOT(onAuthenticationRequestSlot(QNetworkReply*,QAuthenticator*)));
     connect(&manager, SIGNAL(finished(QNetworkReply*)),SLOT(downloadFinished(QNetworkReply*)));
@@ -86,7 +87,7 @@ void getImage::makeRequest(unsigned int id, bool autoId){
     if (autoId) {
         id = requestId++;
         //reqNo++; //requestNo.append(id); //qDebug() << id;
-        request.setRawHeader("Authorization","Basic " + QByteArray(QString("%1:%2").arg(user).arg(password).toAscii()));
+        //request.setRawHeader("Authorization","Basic " + QByteArray(QString("%1:%2").arg(user).arg(password).toAscii()));
     } else {
         request.setRawHeader("Authorization","Digest " + authorHeader);
     }

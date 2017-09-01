@@ -9,6 +9,7 @@
 
 #include <QList>
 #include <QNetworkAccessManager>
+#include <QNetworkCookieJar>
 #include <QNetworkRequest>
 #include <QNetworkReply>
 #include <QAuthenticator>
@@ -39,13 +40,14 @@ class networkData {
 class getImage: public QObject {
     Q_OBJECT
     QNetworkAccessManager manager;
+    QNetworkCookieJar cookieJar;
 
     public:
         QUrl url;
 
         //static const char *user = "admin";//anonymity";
-        QString user = "admin";//anonymity";
-        QString password = "admin";
+        QString user = "anonymity";//"anonymity";
+        QString password = "";//"admin";
 
         getSystemTime time;                     // system time class
         QList<networkData *> imageList;         // net. data buffer
