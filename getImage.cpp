@@ -38,7 +38,7 @@ getImage::getImage(QString _url,int _dataBuffer){
     //requestNo.clear();
     //reqNo = 0;
 
-    manager.setCookieJar(&cookieJar);
+    //-manager.setCookieJar(&cookieJar);
     Q_ASSERT(&manager);
     connect(&manager, SIGNAL(authenticationRequired(QNetworkReply*,QAuthenticator*)), SLOT(onAuthenticationRequestSlot(QNetworkReply*,QAuthenticator*)));
     connect(&manager, SIGNAL(finished(QNetworkReply*)),SLOT(downloadFinished(QNetworkReply*)));
