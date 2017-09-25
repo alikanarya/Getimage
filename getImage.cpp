@@ -3,7 +3,8 @@
 #include <QRegularExpressionMatch>
 #include <QRegularExpressionMatchIterator>
 #include <QCryptographicHash>
-
+#include <QDebug>
+#include <QTextCodec>
 
 networkData::networkData(){
     image = new QImage;
@@ -15,13 +16,20 @@ networkData::~networkData(){
     delete image;
 }
 
-getImage::getImage(QString _url){
+getImage::getImage(QString _url, bool _mode){
 
-    url.setUrl(_url);
-    cameraDown = true;
-    requestTime = 0;
-    replyTime = 0;
-    connect(&manager, SIGNAL(finished(QNetworkReply*)),SLOT(checkReplyFinished(QNetworkReply*)));
+    if (_mode){             // live state checker mode
+        url.setUrl(_url);
+        cameraDown = true;
+        requestTime = 0;
+        replyTime = 0;
+        connect(&manager, SIGNAL(finished(QNetworkReply*)),SLOT(checkReplyFinished(QNetworkReply*)));
+    } else {                // api request mode
+        hostName = _url;
+        Q_ASSERT(&manager);
+        connect(&manager, SIGNAL(authenticationRequired(QNetworkReply*,QAuthenticator*)), SLOT(onAuthenticationRequestSlot(QNetworkReply*,QAuthenticator*)));
+        connect(&manager, SIGNAL(finished(QNetworkReply*)),SLOT(replyFinished(QNetworkReply*)));
+    }
 }
 
 getImage::getImage(QString _url,int _dataBuffer){
@@ -267,4 +275,36 @@ void getImage::digestCalc(QNetworkReply *reply){
 void getImage::timeOut(){
     cameraDown = true;
     emit cameraDownSignal();
+}
+
+void getImage::apiDahuaGetFocusState(){
+
+    QString cmd = "http://" + hostName + API_DAHUA_getFocusState;
+    qDebug() << cmd;
+    url.setUrl(cmd);
+    QNetworkRequest request(url);
+    manager.get(request);
+}
+
+void getImage::replyFinished(QNetworkReply *reply){
+
+    if ( !reply->error() ) {
+//        qDebug() << QTextCodec::codecForMib(1015)->toUnicode(reply->readAll());
+        //qDebug() << ((QString) reply->readAll());
+        QByteArray replyContent = reply->readAll();
+        qDebug() << ((QString) replyContent);
+
+        QRegularExpression regex("=(.*?)\r\n");
+        QRegularExpressionMatchIterator i = regex.globalMatch(replyContent);
+        QList<QString> authResponse;
+        while (i.hasNext()) {
+            QRegularExpressionMatch match = i.next();
+            if (match.hasMatch()) { // realm, qop, nonce, opaque
+                authResponse.append(match.captured(1));
+            }
+        }
+        //for (int j=0; j<authResponse.size(); j++) qDebug() << authResponse.at(j);
+
+    }
+
 }

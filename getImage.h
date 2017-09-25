@@ -7,6 +7,9 @@
 #define RequestSecond "RequestSecond"
 #define RequestMSecond "RequestMSecond"
 
+#define API_DAHUA_getFocusState     "/cgi-bin/alarm.cgi?action=getOutState"
+#define API_DAHUA_getFocusStatus    "/cgi-bin/devVideoInput.cgi?action=getFocusStatus"
+
 #include <QList>
 #include <QNetworkAccessManager>
 //-#include <QNetworkCookieJar>
@@ -44,6 +47,7 @@ class getImage: public QObject {
 
     public:
         QUrl url;
+        QString hostName = "";
 
         //static const char *user = "admin";//anonymity";
         QString user = "admin";//"anonymity";
@@ -72,13 +76,15 @@ class getImage: public QObject {
         QByteArray authorHeader = "";
         QByteArray dlm = QString(":").toLocal8Bit();
 
-        getImage(QString _url);                 // constructor
+        getImage(QString _url, bool _mode);     // constructor
         getImage(QString _url,int _dataBuffer); // constructor
         QImage* toImage(QIODevice *data);       // converts net. data to image
         void makeRequest(unsigned int id, bool autoId);
         void reset();                           // resets some parameters
         int calcTotalMsec(int hour, int min, int second, int msec);     // calc. total msec of time values
         void digestCalc(QNetworkReply *reply);
+
+        void apiDahuaGetFocusState();
 
         ~getImage();                            // destructor
         void run();                             // sends net. request
@@ -90,6 +96,7 @@ class getImage: public QObject {
         void checkReplyFinished(QNetworkReply *reply);
         void onAuthenticationRequestSlot(QNetworkReply *aReply, QAuthenticator *aAuthenticator);
         void timeOut();
+        void replyFinished(QNetworkReply *reply);
 
     signals:
 
