@@ -279,31 +279,81 @@ void getImage::timeOut(){
 
 void getImage::apiDahuaGetFocusState(){
 
+    busy = true;
     QString cmd = "http://" + hostName + API_DAHUA_getFocusState;
-    qDebug() << cmd;
+    //qDebug() << cmd;
     url.setUrl(cmd);
     QNetworkRequest request(url);
+    apiCode = APICODE_apiDahuaGetFocusState;
     manager.get(request);
+    //busy = false;
+}
+
+void getImage::apiDahuaAutoFocus(){
+
+    busy = true;
+    QString cmd = "http://" + hostName + API_DAHUA_autoFocus;
+    //qDebug() << cmd;
+    url.setUrl(cmd);
+    QNetworkRequest request(url);
+    apiCode = APICODE_apiDahuaAutoFocus;
+    manager.get(request);
+    //busy = false;
+}
+
+void getImage::apiDahuaGetFocusStatus(){
+
+    busy = true;
+    QString cmd = "http://" + hostName + API_DAHUA_getFocusStatus;
+    //qDebug() << cmd;
+    url.setUrl(cmd);
+    QNetworkRequest request(url);
+    apiCode = APICODE_apiDahuaGetFocusStatus;
+    manager.get(request);
+    //busy = false;
 }
 
 void getImage::replyFinished(QNetworkReply *reply){
 
-    if ( !reply->error() ) {
+    busy = false;
+
+    if ( !reply->error() && apiCode != 1) {
 //        qDebug() << QTextCodec::codecForMib(1015)->toUnicode(reply->readAll());
         //qDebug() << ((QString) reply->readAll());
         QByteArray replyContent = reply->readAll();
-        qDebug() << ((QString) replyContent);
+        //qDebug() << ((QString) replyContent);
 
         QRegularExpression regex("=(.*?)\r\n");
         QRegularExpressionMatchIterator i = regex.globalMatch(replyContent);
         QList<QString> authResponse;
         while (i.hasNext()) {
             QRegularExpressionMatch match = i.next();
-            if (match.hasMatch()) { // realm, qop, nonce, opaque
+            if (match.hasMatch()) {
                 authResponse.append(match.captured(1));
             }
         }
         //for (int j=0; j<authResponse.size(); j++) qDebug() << authResponse.at(j);
+
+        switch ( apiCode ) {
+            case APICODE_apiDahuaGetFocusState:
+                if ( authResponse.at(0) == "0")
+                    emit focusState(true);      // in focus, no alarm
+                else if ( authResponse.at(0) == "1")
+                    emit focusState(false);     // out of focus, alarm
+                else
+                    emit apiError();
+                break;
+            case APICODE_apiDahuaGetFocusStatus:
+                focusPos = authResponse.at(0).toFloat();
+                focusStatus = authResponse.at(2);
+                if (focusStatus == "Normal")
+                    emit focusingActionState(false);
+                if (focusStatus == "Autofocus")
+                    emit focusingActionState(true);
+
+                qDebug() << focusPos << "/" << authResponse.at(1) << "/" << focusStatus;
+                break;
+        }
 
     }
 

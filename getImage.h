@@ -8,7 +8,12 @@
 #define RequestMSecond "RequestMSecond"
 
 #define API_DAHUA_getFocusState     "/cgi-bin/alarm.cgi?action=getOutState"
+#define API_DAHUA_autoFocus         "/cgi-bin/devVideoInput.cgi?action=autoFocus"
 #define API_DAHUA_getFocusStatus    "/cgi-bin/devVideoInput.cgi?action=getFocusStatus"
+
+#define APICODE_apiDahuaGetFocusState   0
+#define APICODE_apiDahuaAutoFocus       1
+#define APICODE_apiDahuaGetFocusStatus  2
 
 #include <QList>
 #include <QNetworkAccessManager>
@@ -76,6 +81,11 @@ class getImage: public QObject {
         QByteArray authorHeader = "";
         QByteArray dlm = QString(":").toLocal8Bit();
 
+        int apiCode = 0;
+        bool busy = false;
+        float focusPos = 0;
+        QString focusStatus = "";
+
         getImage(QString _url, bool _mode);     // constructor
         getImage(QString _url,int _dataBuffer); // constructor
         QImage* toImage(QIODevice *data);       // converts net. data to image
@@ -85,6 +95,8 @@ class getImage: public QObject {
         void digestCalc(QNetworkReply *reply);
 
         void apiDahuaGetFocusState();
+        void apiDahuaAutoFocus();
+        void apiDahuaGetFocusStatus();
 
         ~getImage();                            // destructor
         void run();                             // sends net. request
@@ -105,6 +117,9 @@ class getImage: public QObject {
         void lastDataTaken();
         void cameraDownSignal();
         void cameraOnlineSignal();
+        void apiError();
+        void focusState(bool);              // true; in focus, false; out of focus
+        void focusingActionState(bool);     // true; focusing in action, false; stable
 };
 
 #endif // GETIMAGE_H
