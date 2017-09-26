@@ -286,7 +286,6 @@ void getImage::apiDahuaGetFocusState(){
     QNetworkRequest request(url);
     apiCode = APICODE_apiDahuaGetFocusState;
     manager.get(request);
-    //busy = false;
 }
 
 void getImage::apiDahuaAutoFocus(){
@@ -298,7 +297,6 @@ void getImage::apiDahuaAutoFocus(){
     QNetworkRequest request(url);
     apiCode = APICODE_apiDahuaAutoFocus;
     manager.get(request);
-    //busy = false;
 }
 
 void getImage::apiDahuaGetFocusStatus(){
@@ -310,7 +308,17 @@ void getImage::apiDahuaGetFocusStatus(){
     QNetworkRequest request(url);
     apiCode = APICODE_apiDahuaGetFocusStatus;
     manager.get(request);
-    //busy = false;
+}
+
+void getImage::apiDahuaSetFocusPos(float value){
+
+    busy = true;
+    QString cmd = "http://" + hostName + API_DAHUA_setFocusPosition1 + QString::number(value,'f',3) + API_DAHUA_setFocusPosition2;
+    //qDebug() << cmd;
+    url.setUrl(cmd);
+    QNetworkRequest request(url);
+    apiCode = APICODE_apiDahuaSetFocusPos;
+    manager.get(request);
 }
 
 void getImage::replyFinished(QNetworkReply *reply){
@@ -345,13 +353,14 @@ void getImage::replyFinished(QNetworkReply *reply){
                 break;
             case APICODE_apiDahuaGetFocusStatus:
                 focusPos = authResponse.at(0).toFloat();
+                focusMotorSteps = authResponse.at(1);
                 focusStatus = authResponse.at(2);
                 if (focusStatus == "Normal")
                     emit focusingActionState(false);
                 if (focusStatus == "Autofocus")
                     emit focusingActionState(true);
 
-                qDebug() << focusPos << "/" << authResponse.at(1) << "/" << focusStatus;
+                //qDebug() << focusPos << "/" << authResponse.at(1) << "/" << focusStatus;
                 break;
         }
 

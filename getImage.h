@@ -10,10 +10,13 @@
 #define API_DAHUA_getFocusState     "/cgi-bin/alarm.cgi?action=getOutState"
 #define API_DAHUA_autoFocus         "/cgi-bin/devVideoInput.cgi?action=autoFocus"
 #define API_DAHUA_getFocusStatus    "/cgi-bin/devVideoInput.cgi?action=getFocusStatus"
+#define API_DAHUA_setFocusPosition1 "/cgi-bin/devVideoInput.cgi?action=adjustFocus&focus="
+#define API_DAHUA_setFocusPosition2 "&zoom=0"
 
 #define APICODE_apiDahuaGetFocusState   0
 #define APICODE_apiDahuaAutoFocus       1
 #define APICODE_apiDahuaGetFocusStatus  2
+#define APICODE_apiDahuaSetFocusPos     3
 
 #include <QList>
 #include <QNetworkAccessManager>
@@ -84,6 +87,7 @@ class getImage: public QObject {
         int apiCode = 0;
         bool busy = false;
         float focusPos = 0;
+        QString focusMotorSteps = "";
         QString focusStatus = "";
 
         getImage(QString _url, bool _mode);     // constructor
@@ -97,6 +101,7 @@ class getImage: public QObject {
         void apiDahuaGetFocusState();
         void apiDahuaAutoFocus();
         void apiDahuaGetFocusStatus();
+        void apiDahuaSetFocusPos(float value);
 
         ~getImage();                            // destructor
         void run();                             // sends net. request
