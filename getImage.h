@@ -125,6 +125,7 @@ class getImage: public QObject {
         void apiError();
         void focusState(bool);              // true; in focus, false; out of focus
         void focusingActionState(bool);     // true; focusing in action, false; stable
+        void requestCompleted();
 };
 
 #endif // GETIMAGE_H

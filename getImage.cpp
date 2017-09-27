@@ -362,6 +362,9 @@ void getImage::replyFinished(QNetworkReply *reply){
 
                 //qDebug() << focusPos << "/" << authResponse.at(1) << "/" << focusStatus;
                 break;
+            default:
+                emit requestCompleted();
+                break;
         }
 
     }
